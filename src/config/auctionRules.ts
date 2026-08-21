@@ -3,6 +3,7 @@ import type { AuctionRules, AIDifficulty } from '../types'
 export const DEFAULT_RULES: AuctionRules = {
   bidIncrement: 20, // ₹20 lakh
   timerSeconds: 10,
+  timerEnabled: true,
   maxSquadSize: 18,
   minSquadSize: 12,
   maxOverseasPlayers: 8,
@@ -13,6 +14,7 @@ export const DEFAULT_RULES: AuctionRules = {
 export const QUICK_RULES: AuctionRules = {
   bidIncrement: 25,
   timerSeconds: 8,
+  timerEnabled: true,
   maxSquadSize: 11,
   minSquadSize: 9,
   maxOverseasPlayers: 5,

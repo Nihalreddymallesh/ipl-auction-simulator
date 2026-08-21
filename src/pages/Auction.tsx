@@ -23,14 +23,14 @@ export default function Auction({ initialState, onExit, onViewResults }: Props) 
   const auction = useAuction(initialState)
   const {
     state, allPlayers, currentPlayer, overlay, overlayData, remaining,
-    paused, start, pause, resume, userBid, nextBidForUser, hammerNow,
+    paused, timerEnabled, start, pause, resume, userBid, hammerNow,
     skipLot, undoLot, undoBid, interests,
   } = auction
 
   const [muted, setMutedState] = useState(isMuted())
   const [showPlayerModal, setShowPlayerModal] = useState(false)
 
-  const userTeam = state.teams.find((t) => t.controller === 'user')
+  const userTeams = state.teams.filter((t) => t.controller === 'user')
   const leadingTeam = state.currentBidTeamId
     ? state.teams.find((t) => t.id === state.currentBidTeamId)
     : null
@@ -57,14 +57,18 @@ export default function Auction({ initialState, onExit, onViewResults }: Props) 
         }
       : null
 
-  const canUserBidNow =
+  const nextBidAmount =
+    state.currentBidTeamId === null && currentPlayer
+      ? currentPlayer.basePrice
+      : state.currentBid + state.config.rules.bidIncrement
+
+  const bidEligible = (team: NonNullable<(typeof userTeams)[number]>) =>
     state.status === 'running' &&
     !paused &&
     !overlay &&
-    userTeam !== undefined &&
-    nextBidForUser <= userTeam.purse &&
-    (state.squads[userTeam.id] ?? []).length < state.config.rules.maxSquadSize &&
-    state.currentBidTeamId !== userTeam?.id
+    nextBidAmount <= team.purse &&
+    (state.squads[team.id] ?? []).length < state.config.rules.maxSquadSize &&
+    state.currentBidTeamId !== team.id
 
   const squadSizeOf = (teamId: string) => (state.squads[teamId] ?? []).length
 
@@ -209,37 +213,90 @@ export default function Auction({ initialState, onExit, onViewResults }: Props) 
             </div>
 
             <div className="mt-4 flex items-center justify-center gap-4">
-              <CountdownTimer remaining={remaining} total={state.config.rules.timerSeconds} />
+              {timerEnabled ? (
+                <CountdownTimer remaining={remaining} total={state.config.rules.timerSeconds} />
+              ) : (
+                <span className="rounded-full border border-slate-600 bg-stadium-800 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  ∞ No Time Limit
+                </span>
+              )}
               <div className="text-left text-xs text-slate-500">
                 <p>Increment</p>
                 <p className="font-bold text-slate-300">{formatLakh(state.config.rules.bidIncrement)}</p>
               </div>
             </div>
 
-            {userTeam && (
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                disabled={!canUserBidNow}
-                onClick={() => userBid(userTeam.id)}
-                className={`mt-5 w-full rounded-xl py-4 font-display text-2xl font-black tracking-widest transition ${
-                  canUserBidNow
-                    ? 'bg-gradient-to-r from-gold-500 to-gold-400 text-stadium-950 shadow-lg shadow-gold-500/20 hover:brightness-110'
-                    : 'cursor-not-allowed bg-stadium-700 text-slate-500'
-                }`}
-              >
-                BID {formatLakh(nextBidForUser)}
-              </motion.button>
+            {/* co-op: one bid button per human team */}
+            {userTeams.length > 0 && state.status === 'running' && !overlay && (
+              <div className={`mt-5 grid gap-2 ${userTeams.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+                {userTeams.map((team) => {
+                  const eligible = bidEligible(team)
+                  const squadFull = (state.squads[team.id] ?? []).length >= state.config.rules.maxSquadSize
+                  const reason = !eligible
+                    ? state.currentBidTeamId === team.id
+                      ? `${team.shortName} holds the highest bid`
+                      : squadFull
+                        ? 'Squad full'
+                        : nextBidAmount > team.purse
+                          ? 'Over purse'
+                          : paused ? 'Paused' : ''
+                    : ''
+                  return (
+                    <motion.button
+                      key={team.id}
+                      whileTap={eligible ? { scale: 0.97 } : undefined}
+                      disabled={!eligible}
+                      onClick={() => userBid(team.id)}
+                      title={reason}
+                      className={`flex items-center justify-center gap-2 rounded-xl py-4 font-display text-xl font-black tracking-widest transition sm:text-2xl ${
+                        eligible
+                          ? 'text-stadium-950 shadow-lg hover:brightness-110'
+                          : 'cursor-not-allowed bg-stadium-700 text-slate-500'
+                      }`}
+                      style={
+                        eligible
+                          ? {
+                              background: `linear-gradient(90deg, ${team.secondaryColor}, ${team.primaryColor})`,
+                              color: '#fff',
+                              boxShadow: `0 8px 24px -6px ${team.primaryColor}66`,
+                            }
+                          : undefined
+                      }
+                    >
+                      BID {formatLakh(nextBidAmount)} · {team.shortName}
+                    </motion.button>
+                  )
+                })}
+              </div>
             )}
-            {!canUserBidNow && userTeam && state.status === 'running' && !overlay && (
+            {userTeams.length === 1 && !bidEligible(userTeams[0]) && userTeams[0] && state.status === 'running' && !overlay && (
               <p className="mt-2 text-xs text-red-400/80">
-                {state.currentBidTeamId === userTeam.id
+                {state.currentBidTeamId === userTeams[0].id
                   ? 'You hold the highest bid.'
-                  : (state.squads[userTeam.id] ?? []).length >= state.config.rules.maxSquadSize
+                  : (state.squads[userTeams[0].id] ?? []).length >= state.config.rules.maxSquadSize
                     ? 'Your squad is full.'
-                    : nextBidForUser > userTeam.purse
+                    : nextBidAmount > userTeams[0].purse
                       ? 'Bid exceeds your remaining purse.'
                       : ''}
               </p>
+            )}
+
+            {/* no-timer controls */}
+            {!timerEnabled && state.status === 'running' && !overlay && (
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <button
+                  onClick={hammerNow}
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-4 py-2 text-xs font-black uppercase tracking-wider text-emerald-300 transition hover:bg-emerald-500/25"
+                >
+                  <Flag size={14} /> Hammer — SOLD
+                </button>
+                <button
+                  onClick={skipLot}
+                  className="flex items-center gap-1.5 rounded-lg bg-stadium-800 px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-400 transition hover:bg-stadium-700"
+                >
+                  <SkipForward size={14} /> Pass — UNSOLD
+                </button>
+              </div>
             )}
             {paused && state.status === 'running' && (
               <p className="mt-3 rounded-lg bg-yellow-500/10 py-1.5 text-xs font-bold uppercase tracking-widest text-yellow-300">
@@ -248,17 +305,20 @@ export default function Auction({ initialState, onExit, onViewResults }: Props) 
             )}
           </div>
 
-          {/* your squad quick view */}
-          {userTeam && (
-            <div className="card-premium rounded-xl p-4">
+          {/* squad quick views for every human team */}
+          {userTeams.map((team) => (
+            <div key={team.id} className="card-premium rounded-xl p-4">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Your Squad</h3>
+                <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-slate-400">
+                  <TeamLogo team={team} size={16} />
+                  {userTeams.length > 1 ? team.name : 'Your Squad'}
+                </h3>
                 <span className="text-xs text-slate-500">
-                  {(state.squads[userTeam.id] ?? []).length}/{state.config.rules.maxSquadSize} · Purse {formatLakh(userTeam.purse)}
+                  {(state.squads[team.id] ?? []).length}/{state.config.rules.maxSquadSize} · Purse {formatLakh(team.purse)}
                 </span>
               </div>
               <div className="scrollbar-thin flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
-                {(state.squads[userTeam.id] ?? []).map((sp) => {
+                {(state.squads[team.id] ?? []).map((sp) => {
                   const p = allPlayers[sp.playerId]
                   if (!p) return null
                   return (
@@ -267,12 +327,12 @@ export default function Auction({ initialState, onExit, onViewResults }: Props) 
                     </span>
                   )
                 })}
-                {(state.squads[userTeam.id] ?? []).length === 0 && (
+                {(state.squads[team.id] ?? []).length === 0 && (
                   <span className="text-xs text-slate-600">No players yet.</span>
                 )}
               </div>
             </div>
-          )}
+          ))}
 
           <div className="hidden lg:block">
             <BidHistory events={state.history} teamLogos={teamLogos} teamColors={teamColors} />
@@ -318,17 +378,34 @@ export default function Auction({ initialState, onExit, onViewResults }: Props) 
       />
 
       {/* mobile sticky bid */}
-      {userTeam && state.status === 'running' && !overlay && (
+      {userTeams.length > 0 && state.status === 'running' && !overlay && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-800 bg-stadium-950/95 p-3 backdrop-blur lg:hidden">
-          <button
-            disabled={!canUserBidNow}
-            onClick={() => userBid(userTeam.id)}
-            className={`w-full rounded-xl py-3.5 font-display text-xl font-black tracking-widest ${
-              canUserBidNow ? 'bg-gradient-to-r from-gold-500 to-gold-400 text-stadium-950' : 'bg-stadium-700 text-slate-500'
-            }`}
-          >
-            BID {formatLakh(nextBidForUser)} · {userTeam.shortName}
-          </button>
+          <div className={`grid gap-2 ${userTeams.length > 1 ? 'grid-cols-2' : ''}`}>
+            {userTeams.map((team) => {
+              const eligible = bidEligible(team)
+              return (
+                <button
+                  key={team.id}
+                  disabled={!eligible}
+                  onClick={() => userBid(team.id)}
+                  className={`rounded-xl py-3.5 font-display text-lg font-black tracking-widest ${
+                    !eligible
+                      ? 'bg-stadium-700 text-slate-500'
+                      : userTeams.length === 1
+                        ? 'bg-gradient-to-r from-gold-500 to-gold-400 text-stadium-950'
+                        : ''
+                  }`}
+                  style={
+                    eligible && userTeams.length > 1
+                      ? { background: `linear-gradient(90deg, ${team.secondaryColor}, ${team.primaryColor})`, color: '#fff' }
+                      : undefined
+                  }
+                >
+                  BID {formatLakh(nextBidAmount)} · {team.shortName}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

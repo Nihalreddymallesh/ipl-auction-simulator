@@ -15,6 +15,8 @@ budgets, squad rules, Best XI generation, analytics and save/resume support.
 ## Features
 
 - **Three modes** — IPL Preset (10 franchises, 95-player pool), Quick Auction (small pool, faster timer), Fully Custom (2–20 teams)
+- **Co-op hot-seat** — mark any number of teams as *Human* and play together on one screen; every human team gets its own bid button, purse and squad view
+- **Optional time limit** — turn the countdown off entirely and resolve each lot manually with **Hammer (SOLD)** / **Pass (UNSOLD)**
 - **Fully configurable auctions** — per-team budgets, logos (upload/URL), colors, bid increment, timer, squad limits, overseas limits, player order
 - **Live auction engine** — base-price opening, configurable increments, countdown that resets on every bid, purse validation, SOLD/UNSOLD flows with animations
 - **AI bidding** — four difficulty levels evaluating squad needs, role gaps, overseas slots, scarcity, auction stage, purse pressure and randomness
@@ -59,9 +61,9 @@ No environment variables are required. The app is 100% client-side; `.env.exampl
 ## How to Play
 
 1. **Pick a mode** — IPL Preset asks you to choose your franchise; Custom lets you build anything from 2 to 20 teams.
-2. **Configure teams** — set each team's name, budget (in Cr — they can all be different), colors and logo. Mark exactly one team as *You*.
+2. **Configure teams** — set each team's name, budget (in Cr — they can all be different), colors and logo. Mark one or more teams as *Human* for co-op, or none for an AI-only spectator auction.
 3. **Curate the pool** — search/filter/sort players, exclude anyone, add custom players.
-4. **Auction** — players come to the block one by one. Press BID to raise by the increment; AI teams evaluate and counter-bid in real time. When the timer hits zero: SOLD to the highest bidder, or UNSOLD.
+4. **Auction** — players come to the block one by one. Human teams press BID to raise by the increment; AI teams evaluate and counter-bid in real time. With a time limit the lot resolves when the clock hits zero; without one, press **Hammer** to sell or **Pass** to move on.
 5. **Review** — after the final lot, open Results for the leaderboard, squads and Best XI, then Analytics for charts.
 
 ## Architecture

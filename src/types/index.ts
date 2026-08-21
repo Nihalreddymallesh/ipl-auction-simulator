@@ -109,6 +109,8 @@ export interface AuctionEvent {
 export interface AuctionRules {
   bidIncrement: number // lakh
   timerSeconds: number
+  /** When false, lots have no countdown — resolve manually with Hammer / Pass */
+  timerEnabled: boolean
   maxSquadSize: number
   minSquadSize: number
   maxOverseasPlayers: number

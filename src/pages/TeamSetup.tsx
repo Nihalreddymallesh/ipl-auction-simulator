@@ -59,7 +59,7 @@ export default function TeamSetup({
   )
   const [rules, setRules] = useState<AuctionRules>(
     initialRules ?? {
-      bidIncrement: 20, timerSeconds: 10, maxSquadSize: 16, minSquadSize: 12,
+      bidIncrement: 20, timerSeconds: 10, timerEnabled: true, maxSquadSize: 16, minSquadSize: 12,
       maxOverseasPlayers: 6, playerOrder: 'role-based', currencyUnit: 'lakh',
     },
   )
@@ -101,13 +101,11 @@ export default function TeamSetup({
   const confirm = () => {
     setTouched(true)
     if (!validation.valid) return
-    // ensure exactly one user team: first user team wins, rest become AI
-    const firstUserIdx = teams.findIndex((t) => t.controller === 'user')
+    // Keep controllers exactly as chosen — any number of human (co-op) or AI teams.
     const finalTeams = teams.map((t, i) => ({
       ...t,
       name: t.name.trim() || `Team ${i + 1}`,
       purse: t.budget,
-      controller: i === firstUserIdx ? ('user' as const) : ('ai' as const),
     }))
     onConfirm(finalTeams, rules, difficulty)
   }
@@ -177,8 +175,32 @@ export default function TeamSetup({
         <section className="card-premium grid grid-cols-2 gap-4 rounded-xl p-5 sm:grid-cols-3 lg:grid-cols-6">
           <NumberField label="Bid Increment (L)" value={rules.bidIncrement} min={5} max={100} step={5}
             onChange={(v) => setRules({ ...rules, bidIncrement: v })} />
-          <NumberField label="Timer (sec)" value={rules.timerSeconds} min={5} max={30}
-            onChange={(v) => setRules({ ...rules, timerSeconds: v })} />
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Timer {rules.timerEnabled ? '(sec)' : '(off)'}
+            </label>
+            <input
+              type="number"
+              value={rules.timerSeconds}
+              min={5}
+              max={30}
+              disabled={!rules.timerEnabled}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (!Number.isNaN(v)) setRules({ ...rules, timerSeconds: Math.min(30, Math.max(5, Math.round(v))) })
+              }}
+              className="w-full rounded-lg border border-slate-700 bg-stadium-800 px-2 py-2 text-sm font-bold text-white focus:border-gold-400 focus:outline-none disabled:opacity-40"
+            />
+          </div>
+          <label className="flex cursor-pointer items-center justify-between gap-2 self-end rounded-lg border border-slate-700 bg-stadium-800 px-3 py-2">
+            <span className="text-xs font-bold text-slate-200">Time Limit</span>
+            <input
+              type="checkbox"
+              checked={rules.timerEnabled}
+              onChange={(e) => setRules({ ...rules, timerEnabled: e.target.checked })}
+              className="h-4 w-4 accent-gold-400"
+            />
+          </label>
           <NumberField label="Max Squad" value={rules.maxSquadSize} min={8} max={25}
             onChange={(v) => setRules({ ...rules, maxSquadSize: v })} />
           <NumberField label="Min Squad" value={rules.minSquadSize} min={5} max={rules.maxSquadSize - 1}
@@ -265,12 +287,7 @@ export default function TeamSetup({
                     <ColorInput value={team.secondaryColor} onChange={(c) => updateTeam(team.id, { secondaryColor: c })} label="Accent" />
                     <ControllerToggle
                       value={team.controller}
-                      onChange={(c) => {
-                        setTeams((ts) => {
-                          if (c === 'user') return ts.map((t) => ({ ...t, controller: t.id === team.id ? 'user' : 'ai' }))
-                          return ts.map((t) => (t.id === team.id ? { ...t, controller: c } : t))
-                        })
-                      }}
+                      onChange={(c) => updateTeam(team.id, { controller: c })}
                     />
                   </div>
                   <input
@@ -356,11 +373,12 @@ function ControllerToggle({ value, onChange }: { value: 'user' | 'ai'; onChange:
         <button
           key={c}
           onClick={() => onChange(c)}
+          title={c === 'user' ? 'Human-controlled (co-op friendly)' : 'AI-controlled'}
           className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition ${
             value === c ? (c === 'user' ? 'bg-gold-400 text-stadium-950' : 'bg-blue-500 text-white') : 'bg-stadium-800 text-slate-500'
           }`}
         >
-          {c === 'user' ? 'You' : 'AI'}
+          {c === 'user' ? 'Human' : 'AI'}
         </button>
       ))}
     </div>

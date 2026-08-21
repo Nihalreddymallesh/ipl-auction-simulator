@@ -144,6 +144,7 @@ function defaultRulesFallback(): AuctionRules {
   return {
     bidIncrement: 20,
     timerSeconds: 10,
+    timerEnabled: true,
     maxSquadSize: 16,
     minSquadSize: 12,
     maxOverseasPlayers: 6,

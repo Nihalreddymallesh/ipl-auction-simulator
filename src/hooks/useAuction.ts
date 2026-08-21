@@ -29,6 +29,7 @@ export interface UseAuctionReturn {
   overlayData: { playerName: string; price: number; teamName: string; teamLogo?: string; teamColor: string } | null
   remaining: number
   paused: boolean
+  timerEnabled: boolean
   start: () => void
   pause: () => void
   resume: () => void
@@ -74,6 +75,8 @@ export function useAuction(initialState: AuctionState): UseAuctionReturn {
 
   // ---- timer ----
   const timerSeconds = state.config.rules.timerSeconds
+  // Backwards compat: saved auctions from before the flag exist treat as enabled.
+  const timerEnabled = state.config.rules.timerEnabled !== false
 
   const resolveLot = useCallback(() => {
     const s = stateRef.current
@@ -107,7 +110,11 @@ export function useAuction(initialState: AuctionState): UseAuctionReturn {
     }
   }, [allPlayers])
 
-  const { remaining, reset } = useTimer(timerSeconds, state.status === 'running' && !paused && !overlay, resolveLot)
+  const { remaining, reset } = useTimer(
+    timerSeconds,
+    timerEnabled && state.status === 'running' && !paused && !overlay,
+    resolveLot,
+  )
 
   // ---- advance to next lot after overlay ----
   useEffect(() => {
@@ -174,7 +181,15 @@ export function useAuction(initialState: AuctionState): UseAuctionReturn {
     })
     setInterests(interestMap)
 
-    if (decisions.length === 0) return
+    if (decisions.length === 0) {
+      // Spectator mode (no human teams) with no time limit: nothing left to
+      // wait for, so settle the lot automatically.
+      if (!timerEnabled && state.teams.every((t) => t.controller !== 'user')) {
+        const t0 = window.setTimeout(() => resolveLot(), AI_MIN_DELAY)
+        return () => window.clearTimeout(t0)
+      }
+      return
+    }
 
     // Highest willing bidder raises after a human-feeling delay
     const winner = decisions[0]
@@ -193,11 +208,12 @@ export function useAuction(initialState: AuctionState): UseAuctionReturn {
     }, delay)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.status, state.currentPlayerId, state.currentBid, state.currentBidTeamId, paused, overlay])
+  }, [state.status, state.currentPlayerId, state.currentBid, state.currentBidTeamId, paused, overlay, timerEnabled])
 
   // ---- timer warning sound ----
   const warnedRef = useRef(false)
   useEffect(() => {
+    if (!timerEnabled) return
     if (remaining <= 3 && remaining > 0 && state.status === 'running' && !paused && !overlay) {
       if (!warnedRef.current) {
         warnedRef.current = true
@@ -205,7 +221,7 @@ export function useAuction(initialState: AuctionState): UseAuctionReturn {
       }
     }
     if (remaining > 3) warnedRef.current = false
-  }, [remaining, state.status, paused, overlay])
+  }, [remaining, state.status, paused, overlay, timerEnabled])
 
   // ---- user actions ----
   const nextBidForUser =
@@ -262,6 +278,7 @@ export function useAuction(initialState: AuctionState): UseAuctionReturn {
     overlayData,
     remaining,
     paused,
+    timerEnabled,
     start,
     pause,
     resume,

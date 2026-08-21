@@ -22,10 +22,6 @@ export function validateTeamSetup(teams: Team[]): ValidationResult {
     }
   })
 
-  if (!teams.some((t) => t.controller === 'user')) {
-    errors.push('At least one team must be controlled by you.')
-  }
-
   return { valid: errors.length === 0, errors }
 }
 
