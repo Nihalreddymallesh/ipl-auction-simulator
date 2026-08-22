@@ -137,6 +137,10 @@ npm run build && npx vercel deploy --prod
 # or: Netlify / GitHub Pages (set base in vite.config.ts) / any CDN
 ```
 
+## Live Demo
+
+[https://ipl-auction-simulator-e8kd1yasj-nihalreddymalleshs-projects.vercel.app](https://ipl-auction-simulator-e8kd1yasj-nihalreddymalleshs-projects.vercel.app)
+
 SPA routing note: this app uses state-based navigation (no URL router), so no rewrite rules are required.
 
 ## Future Improvements
