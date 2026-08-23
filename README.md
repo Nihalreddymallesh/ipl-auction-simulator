@@ -8,10 +8,6 @@ budgets, squad rules, Best XI generation, analytics and save/resume support.
 
 ![Tech](https://img.shields.io/badge/React_19-Vite_8-61dafb) ![TS](https://img.shields.io/badge/TypeScript-strict-3178c6) ![Tailwind](https://img.shields.io/badge/Tailwind_v4-CSS-38bdf8)
 
-## Screenshots
-
-> Add screenshots here after running the app (landing page, live auction, results dashboard).
-
 ## Features
 
 - **Three modes** — IPL Preset (10 franchises, 95-player pool), Quick Auction (small pool, faster timer), Fully Custom (2–20 teams)
